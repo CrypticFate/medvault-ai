@@ -18,3 +18,6 @@ export * from './storageService';
 
 // Calendar & Notifications
 export * from './calendarService';
+
+// Biometric Authentication
+export * from './biometricService';

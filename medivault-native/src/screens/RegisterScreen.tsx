@@ -33,6 +33,7 @@ import {
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '../theme';
 import { LoadingOverlay } from '../components/common';
 import { useAuthStore } from '../store/useAuthStore';
+import { isGoogleSignInAvailable } from '../services';
 import { AuthStackScreenProps } from '../navigation/types';
 
 type Props = AuthStackScreenProps<'Register'>;
@@ -48,6 +49,9 @@ const RegisterScreen: React.FC<Props> = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Check if Google Sign-In is available (requires development build)
+  const googleSignInEnabled = isGoogleSignInAvailable();
 
   const handleRegister = async () => {
     if (!name.trim()) {
@@ -101,7 +105,11 @@ const RegisterScreen: React.FC<Props> = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <LoadingOverlay visible={isLoading} />
+      <LoadingOverlay 
+        visible={isLoading} 
+        message="Creating account..."
+        submessage="Setting up your secure health profile."
+      />
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -217,25 +225,30 @@ const RegisterScreen: React.FC<Props> = () => {
             <Text style={styles.registerButtonText}>Create Account</Text>
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          {/* Google Sign-In Section - Only show when available */}
+          {googleSignInEnabled && (
+            <>
+              {/* Divider */}
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or continue with</Text>
+                <View style={styles.dividerLine} />
+              </View>
 
-          {/* Google Sign-In Button */}
-          <TouchableOpacity
-            style={styles.googleButton}
-            onPress={handleGoogleSignIn}
-            activeOpacity={0.9}
-          >
-            <Image
-              source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }}
-              style={styles.googleIcon}
-            />
-            <Text style={styles.googleButtonText}>Continue with Google</Text>
-          </TouchableOpacity>
+              {/* Google Sign-In Button */}
+              <TouchableOpacity
+                style={styles.googleButton}
+                onPress={handleGoogleSignIn}
+                activeOpacity={0.9}
+              >
+                <Image
+                  source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }}
+                  style={styles.googleIcon}
+                />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* Sign In Link */}

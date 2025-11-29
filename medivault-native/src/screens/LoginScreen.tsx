@@ -1,9 +1,9 @@
 /**
  * MediVault AI - Login Screen
- * User authentication with email/password and Google OAuth
+ * User authentication with email/password, Google OAuth, and Biometric
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,11 +26,14 @@ import {
   LogIn,
   Heart,
   Sparkles,
+  Fingerprint,
+  ScanFace,
 } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '../theme';
 import { LoadingOverlay } from '../components/common';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore, useBiometric, useBiometricActions } from '../store/useAuthStore';
+import { isGoogleSignInAvailable, isBiometricAvailable } from '../services';
 import { AuthStackScreenProps } from '../navigation/types';
 
 type Props = AuthStackScreenProps<'Login'>;
@@ -39,10 +42,34 @@ const LoginScreen: React.FC<Props> = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { signIn, signInWithGoogle, isLoading, error, clearError } = useAuthStore();
+  const { biometricAvailable, biometricEnabled, biometricType } = useBiometric();
+  const { checkBiometricStatus, signInWithBiometrics, enableBiometricLogin } = useBiometricActions();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
+  
+  // Check if Google Sign-In is available (requires development build)
+  const googleSignInEnabled = isGoogleSignInAvailable();
+
+  // Check biometric status on mount
+  useEffect(() => {
+    checkBiometricStatus();
+  }, []);
+
+  // Auto-trigger biometric login if enabled
+  useEffect(() => {
+    const attemptBiometricLogin = async () => {
+      if (biometricEnabled && biometricAvailable) {
+        await handleBiometricLogin();
+      }
+    };
+    
+    // Small delay to let the screen render first
+    const timer = setTimeout(attemptBiometricLogin, 500);
+    return () => clearTimeout(timer);
+  }, [biometricEnabled, biometricAvailable]);
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -56,8 +83,53 @@ const LoginScreen: React.FC<Props> = () => {
 
     try {
       await signIn({ email: email.trim(), password });
+      
+      // After successful login, prompt to enable biometrics if available and not enabled
+      if (biometricAvailable && !biometricEnabled) {
+        promptEnableBiometric();
+      }
     } catch (error: any) {
       Alert.alert('Login Failed', error.message);
+    }
+  };
+
+  const promptEnableBiometric = () => {
+    Alert.alert(
+      `Enable ${biometricType} Login?`,
+      `Would you like to use ${biometricType} for faster, secure login next time?`,
+      [
+        {
+          text: 'Not Now',
+          style: 'cancel',
+        },
+        {
+          text: 'Enable',
+          onPress: async () => {
+            try {
+              await enableBiometricLogin(email.trim(), password);
+              Alert.alert(
+                'Success!',
+                `${biometricType} login has been enabled. You can use it next time you sign in.`
+              );
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to enable biometric login');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      const success = await signInWithBiometrics();
+      if (!success) {
+        // User cancelled or failed - they can still use password
+        clearError();
+      }
+    } catch (error: any) {
+      // Silent fail - user can still use password
+      console.log('Biometric login error:', error);
     }
   };
 
@@ -79,12 +151,19 @@ const LoginScreen: React.FC<Props> = () => {
     navigation.navigate('Register' as never);
   };
 
+  // Get the appropriate icon for biometric type
+  const BiometricIcon = biometricType.toLowerCase().includes('face') ? ScanFace : Fingerprint;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <LoadingOverlay visible={isLoading} />
+      <LoadingOverlay 
+        visible={isLoading} 
+        message="Signing in..."
+        submessage="Verifying your credentials securely."
+      />
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -104,6 +183,20 @@ const LoginScreen: React.FC<Props> = () => {
           <Text style={styles.title}>MediVault AI</Text>
           <Text style={styles.subtitle}>Your Personal Medical Assistant</Text>
         </View>
+
+        {/* Biometric Quick Login - Show when enabled */}
+        {biometricAvailable && biometricEnabled && (
+          <TouchableOpacity
+            style={styles.biometricQuickLogin}
+            onPress={handleBiometricLogin}
+            activeOpacity={0.8}
+          >
+            <View style={styles.biometricIconLarge}>
+              <BiometricIcon size={48} color={colors.primary[600]} />
+            </View>
+            <Text style={styles.biometricQuickText}>Tap to login with {biometricType}</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Login Form */}
         <View style={styles.form}>
@@ -161,25 +254,42 @@ const LoginScreen: React.FC<Props> = () => {
             <Text style={styles.loginButtonText}>Sign In</Text>
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          {/* Biometric Login Button - Show when available but not using quick login */}
+          {biometricAvailable && biometricEnabled && (
+            <TouchableOpacity
+              style={styles.biometricButton}
+              onPress={handleBiometricLogin}
+              activeOpacity={0.8}
+            >
+              <BiometricIcon size={20} color={colors.primary[600]} />
+              <Text style={styles.biometricButtonText}>Login with {biometricType}</Text>
+            </TouchableOpacity>
+          )}
 
-          {/* Google Sign-In Button */}
-          <TouchableOpacity
-            style={styles.googleButton}
-            onPress={handleGoogleSignIn}
-            activeOpacity={0.9}
-          >
-            <Image
-              source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }}
-              style={styles.googleIcon}
-            />
-            <Text style={styles.googleButtonText}>Continue with Google</Text>
-          </TouchableOpacity>
+          {/* Google Sign-In Section - Only show when available */}
+          {googleSignInEnabled && (
+            <>
+              {/* Divider */}
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or continue with</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Google Sign-In Button */}
+              <TouchableOpacity
+                style={styles.googleButton}
+                onPress={handleGoogleSignIn}
+                activeOpacity={0.9}
+              >
+                <Image
+                  source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }}
+                  style={styles.googleIcon}
+                />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* Sign Up Link */}
@@ -205,7 +315,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: spacing['10'],
+    marginBottom: spacing['6'],
   },
   logoContainer: {
     position: 'relative',
@@ -234,6 +344,32 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.base,
     color: colors.text.secondary,
+  },
+  // Biometric Quick Login
+  biometricQuickLogin: {
+    backgroundColor: colors.primary[50],
+    borderRadius: borderRadius['3xl'],
+    padding: spacing['6'],
+    alignItems: 'center',
+    marginBottom: spacing['6'],
+    borderWidth: 2,
+    borderColor: colors.primary[200],
+    borderStyle: 'dashed',
+  },
+  biometricIconLarge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing['3'],
+    ...shadows.md,
+  },
+  biometricQuickText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semiBold,
+    color: colors.primary[700],
   },
   form: {
     backgroundColor: colors.white,
@@ -293,6 +429,24 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.white,
+  },
+  // Biometric Button
+  biometricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary[50],
+    borderRadius: borderRadius['2xl'],
+    paddingVertical: spacing['4'],
+    gap: spacing['2'],
+    marginTop: spacing['3'],
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+  },
+  biometricButtonText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semiBold,
+    color: colors.primary[700],
   },
   divider: {
     flexDirection: 'row',

@@ -16,17 +16,33 @@ import {
   signInWithCredential,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
-import {
-  GoogleSignin,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
 import { FIREBASE_WEB_CLIENT_ID } from '@env';
 
-// Configure Google Sign-In
-GoogleSignin.configure({
-  webClientId: FIREBASE_WEB_CLIENT_ID,
-  offlineAccess: true,
-});
+// Google Sign-In module - loaded dynamically to support Expo Go
+let GoogleSignin: any = null;
+let statusCodes: any = null;
+let googleSignInAvailable = false;
+
+// Try to load Google Sign-In (only works in development builds, not Expo Go)
+try {
+  const googleSignInModule = require('@react-native-google-signin/google-signin');
+  GoogleSignin = googleSignInModule.GoogleSignin;
+  statusCodes = googleSignInModule.statusCodes;
+  googleSignInAvailable = true;
+  
+  // Configure Google Sign-In
+  GoogleSignin.configure({
+    webClientId: FIREBASE_WEB_CLIENT_ID,
+    offlineAccess: true,
+  });
+  
+  console.log('Google Sign-In configured successfully');
+} catch (error) {
+  console.warn(
+    'Google Sign-In not available. This is expected in Expo Go. ' +
+    'Use a development build for Google Sign-In functionality.'
+  );
+}
 
 // Types
 export interface AuthUser {
@@ -100,9 +116,24 @@ export const signIn = async (data: SignInData): Promise<AuthUser> => {
 };
 
 /**
+ * Check if Google Sign-In is available (development build required)
+ */
+export const isGoogleSignInAvailable = (): boolean => {
+  return googleSignInAvailable;
+};
+
+/**
  * Sign in with Google
  */
 export const signInWithGoogle = async (): Promise<AuthUser> => {
+  // Check if Google Sign-In is available
+  if (!googleSignInAvailable || !GoogleSignin) {
+    throw new Error(
+      'Google Sign-In is not available. ' +
+      'Please use a development build instead of Expo Go.'
+    );
+  }
+  
   try {
     // Check if device supports Google Play Services
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
@@ -125,11 +156,11 @@ export const signInWithGoogle = async (): Promise<AuthUser> => {
     
     return mapFirebaseUser(userCredential.user);
   } catch (error: any) {
-    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+    if (statusCodes && error.code === statusCodes.SIGN_IN_CANCELLED) {
       throw new Error('Google Sign-In was cancelled');
-    } else if (error.code === statusCodes.IN_PROGRESS) {
+    } else if (statusCodes && error.code === statusCodes.IN_PROGRESS) {
       throw new Error('Google Sign-In is already in progress');
-    } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+    } else if (statusCodes && error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
       throw new Error('Google Play Services is not available on this device');
     } else {
       throw new Error(error.message || 'Failed to sign in with Google');
@@ -142,10 +173,17 @@ export const signInWithGoogle = async (): Promise<AuthUser> => {
  */
 export const signOut = async (): Promise<void> => {
   try {
-    // Sign out from Google if signed in
-    const isSignedIn = await GoogleSignin.isSignedIn();
-    if (isSignedIn) {
-      await GoogleSignin.signOut();
+    // Sign out from Google if available and signed in
+    if (googleSignInAvailable && GoogleSignin) {
+      try {
+        const isSignedIn = await GoogleSignin.isSignedIn();
+        if (isSignedIn) {
+          await GoogleSignin.signOut();
+        }
+      } catch (googleError) {
+        // Ignore Google sign-out errors, still proceed with Firebase sign-out
+        console.warn('Google sign-out error (non-critical):', googleError);
+      }
     }
     
     // Sign out from Firebase
@@ -211,6 +249,10 @@ export const updateUserProfile = async (
  * Check if user is signed in with Google
  */
 export const isGoogleSignedIn = async (): Promise<boolean> => {
+  if (!googleSignInAvailable || !GoogleSignin) {
+    return false;
+  }
+  
   try {
     return await GoogleSignin.isSignedIn();
   } catch {

@@ -2,18 +2,22 @@
   "expo": {
     "name": "MediVault AI",
     "slug": "medivault-ai",
+    "owner": "ankon_ahamed",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/logo/logo-2.png",
     "scheme": "medivault",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
+      "image": "./assets/logo/logo-2.png",
       "resizeMode": "contain",
       "backgroundColor": "#0F766E"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.medivault.ai",
+      "icon": "./assets/logo/logo-2.png",
       "infoPlist": {
         "NSCameraUsageDescription": "MediVault needs camera access to scan medical documents",
         "NSPhotoLibraryUsageDescription": "MediVault needs photo library access to upload medical documents",
@@ -23,6 +27,7 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/logo/logo-2.png",
         "backgroundColor": "#0F766E"
       },
       "package": "com.horse.medivault",

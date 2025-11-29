@@ -145,7 +145,11 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
   if (!analysisResult) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <LoadingOverlay visible={isAnalyzing} />
+        <LoadingOverlay 
+          visible={isAnalyzing} 
+          message="Analyzing Lab Report..."
+          submessage="AI is comparing test values with standard ranges and generating health insights."
+        />
 
         {/* Header */}
         <View style={styles.header}>

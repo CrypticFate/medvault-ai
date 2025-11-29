@@ -9,11 +9,11 @@ import { uriToBase64 } from '../utils/imageUtils';
 
 /**
  * Image picker options configuration
+ * Note: allowsEditing is disabled to capture the full image without cropping
  */
 const IMAGE_PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
   mediaTypes: ['images'],
-  allowsEditing: true,
-  aspect: [4, 3],
+  allowsEditing: false,
   quality: API_CONFIG.JPEG_QUALITY,
   base64: true,
 };

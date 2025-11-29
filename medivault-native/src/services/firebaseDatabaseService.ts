@@ -54,14 +54,32 @@ const PATHS = {
 };
 
 /**
+ * Helper function to remove undefined values from an object
+ * Firebase Realtime Database does not accept undefined values
+ */
+const removeUndefinedValues = <T extends Record<string, any>>(obj: T): T => {
+  const result = {} as T;
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      result[key] = obj[key];
+    }
+  }
+  return result;
+};
+
+/**
  * Create or update a user profile
  */
 export const saveUserProfile = async (profile: UserProfile): Promise<void> => {
   const userRef = ref(database, `${PATHS.users}/${profile.uid}`);
-  await set(userRef, {
+  
+  // Remove undefined values before saving (Firebase doesn't accept undefined)
+  const cleanProfile = removeUndefinedValues({
     ...profile,
     updatedAt: new Date().toISOString(),
   });
+  
+  await set(userRef, cleanProfile);
 };
 
 /**

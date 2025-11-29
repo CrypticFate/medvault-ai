@@ -92,7 +92,11 @@ const ScanScreen: React.FC<Props> = () => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <LoadingOverlay visible={localAnalyzing} />
+      <LoadingOverlay 
+        visible={localAnalyzing} 
+        message="Analyzing Document..."
+        submessage="AI is extracting medications, dosages, and medical details."
+      />
 
       {/* Header */}
       <View style={styles.header}>

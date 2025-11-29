@@ -18,6 +18,16 @@ import {
   updateUserProfile as firebaseUpdateProfile,
 } from '../services/firebaseAuthService';
 import { saveUserProfile, getUserProfile, UserProfile } from '../services/firebaseDatabaseService';
+import {
+  isBiometricAvailable,
+  isBiometricEnabled,
+  canUseBiometricLogin,
+  authenticateWithBiometrics,
+  setupBiometricLogin,
+  disableBiometricLogin,
+  getBiometricTypeName,
+  clearStoredCredentials,
+} from '../services/biometricService';
 
 interface AuthState {
   // State
@@ -26,6 +36,11 @@ interface AuthState {
   isLoading: boolean;
   isInitialized: boolean;
   error: string | null;
+  
+  // Biometric state
+  biometricAvailable: boolean;
+  biometricEnabled: boolean;
+  biometricType: string;
   
   // Actions
   initialize: () => () => void;
@@ -36,6 +51,12 @@ interface AuthState {
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (displayName?: string, photoURL?: string) => Promise<void>;
   clearError: () => void;
+  
+  // Biometric actions
+  checkBiometricStatus: () => Promise<void>;
+  signInWithBiometrics: () => Promise<boolean>;
+  enableBiometricLogin: (email: string, password: string) => Promise<void>;
+  disableBiometric: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -45,6 +66,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   isInitialized: false,
   error: null,
+  
+  // Biometric initial state
+  biometricAvailable: false,
+  biometricEnabled: false,
+  biometricType: 'Biometric',
 
   /**
    * Initialize auth state listener
@@ -100,14 +126,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = await firebaseSignUp(data);
       
       // Create user profile in database
+      // Note: Firebase Realtime Database doesn't accept undefined values,
+      // so we only include photoURL if it exists
       const profile: UserProfile = {
         uid: user.uid,
         email: user.email || data.email,
         displayName: data.displayName,
-        photoURL: user.photoURL ?? undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+      
+      // Only add photoURL if it exists (Firebase doesn't accept undefined)
+      if (user.photoURL) {
+        profile.photoURL = user.photoURL;
+      }
       
       await saveUserProfile(profile);
       
@@ -167,14 +199,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       if (!profile) {
         // Create new profile for Google sign-in user
+        // Note: Firebase Realtime Database doesn't accept undefined values,
+        // so we only include optional fields if they exist
         profile = {
           uid: user.uid,
           email: user.email || '',
-          displayName: user.displayName || undefined,
-          photoURL: user.photoURL || undefined,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
+        
+        // Only add optional fields if they exist (Firebase doesn't accept undefined)
+        if (user.displayName) {
+          profile.displayName = user.displayName;
+        }
+        if (user.photoURL) {
+          profile.photoURL = user.photoURL;
+        }
+        
         await saveUserProfile(profile);
       }
       
@@ -289,6 +330,107 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   clearError: () => {
     set({ error: null });
   },
+
+  /**
+   * Check and update biometric authentication status
+   */
+  checkBiometricStatus: async () => {
+    try {
+      const available = await isBiometricAvailable();
+      const enabled = await isBiometricEnabled();
+      const typeName = await getBiometricTypeName();
+      
+      set({
+        biometricAvailable: available,
+        biometricEnabled: enabled,
+        biometricType: typeName,
+      });
+    } catch (error) {
+      console.error('Error checking biometric status:', error);
+      set({
+        biometricAvailable: false,
+        biometricEnabled: false,
+      });
+    }
+  },
+
+  /**
+   * Sign in using biometric authentication
+   * Returns true if successful, false otherwise
+   */
+  signInWithBiometrics: async () => {
+    set({ isLoading: true, error: null });
+    
+    try {
+      const result = await authenticateWithBiometrics();
+      
+      if (result.success && result.credentials) {
+        // Use the stored credentials to sign in
+        const user = await firebaseSignIn({
+          email: result.credentials.email,
+          password: result.credentials.password,
+        });
+        
+        // Fetch user profile
+        const profile = await getUserProfile(user.uid);
+        
+        set({
+          user,
+          userProfile: profile,
+          isLoading: false,
+          error: null,
+        });
+        
+        return true;
+      } else {
+        set({
+          isLoading: false,
+          error: result.error || 'Biometric authentication failed',
+        });
+        return false;
+      }
+    } catch (error: any) {
+      set({
+        isLoading: false,
+        error: error.message || 'Failed to sign in with biometrics',
+      });
+      return false;
+    }
+  },
+
+  /**
+   * Enable biometric login by storing credentials
+   */
+  enableBiometricLogin: async (email: string, password: string) => {
+    try {
+      await setupBiometricLogin(email, password);
+      
+      // Update state
+      set({
+        biometricEnabled: true,
+      });
+    } catch (error: any) {
+      console.error('Error enabling biometric login:', error);
+      throw new Error(error.message || 'Failed to enable biometric login');
+    }
+  },
+
+  /**
+   * Disable biometric login and clear stored credentials
+   */
+  disableBiometric: async () => {
+    try {
+      await disableBiometricLogin();
+      
+      // Update state
+      set({
+        biometricEnabled: false,
+      });
+    } catch (error: any) {
+      console.error('Error disabling biometric login:', error);
+      throw new Error(error.message || 'Failed to disable biometric login');
+    }
+  },
 }));
 
 // Selector hooks for common use cases
@@ -304,4 +446,15 @@ export const useAuthActions = () => {
 
 export const useIsAuthenticated = () => {
   return useAuthStore((state) => state.user !== null);
+};
+
+// Biometric hooks
+export const useBiometric = () => {
+  const { biometricAvailable, biometricEnabled, biometricType } = useAuthStore();
+  return { biometricAvailable, biometricEnabled, biometricType };
+};
+
+export const useBiometricActions = () => {
+  const { checkBiometricStatus, signInWithBiometrics, enableBiometricLogin, disableBiometric } = useAuthStore();
+  return { checkBiometricStatus, signInWithBiometrics, enableBiometricLogin, disableBiometric };
 };

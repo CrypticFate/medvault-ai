@@ -90,7 +90,11 @@ const ForgotPasswordScreen: React.FC<Props> = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <LoadingOverlay visible={isLoading} />
+      <LoadingOverlay 
+        visible={isLoading} 
+        message="Sending reset link..."
+        submessage="We'll email you instructions to reset your password."
+      />
       <ScrollView
         contentContainerStyle={[
           styles.content,
