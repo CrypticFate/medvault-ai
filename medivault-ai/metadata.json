@@ -1,7 +1,0 @@
-{
-  "name": "MediVault AI",
-  "description": "A personal medical assistant that digitizes prescriptions and summarizes medical history using Gemini AI.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}
