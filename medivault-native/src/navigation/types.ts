@@ -25,6 +25,7 @@ export type RootStackParamList = {
   Detail: { recordId: string };
   MedDetail: { medication: Medication; sourceId?: string };
   TestAnalyzer: undefined;
+  LabTestDetail: { labTestId: string };
 };
 
 /**
