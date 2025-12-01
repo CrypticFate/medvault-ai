@@ -230,7 +230,12 @@ const LoginScreen: React.FC<Props> = () => {
               secureTextEntry={!showPassword}
               autoCapitalize="none"
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            <TouchableOpacity 
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.eyeButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+            >
               {showPassword ? (
                 <EyeOff size={20} color={colors.gray[400]} />
               ) : (
@@ -405,6 +410,10 @@ const styles = StyleSheet.create({
     marginLeft: spacing['3'],
     fontSize: fontSize.base,
     color: colors.text.primary,
+  },
+  eyeButton: {
+    padding: spacing['2'],
+    marginRight: -spacing['2'],
   },
   forgotPassword: {
     alignSelf: 'flex-end',
