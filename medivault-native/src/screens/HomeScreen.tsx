@@ -169,7 +169,7 @@ const HomeScreen: React.FC<Props> = () => {
               <Users size={22} color={colors.green[600]} />
             </View>
             <Text style={styles.statNumber}>•••</Text>
-            <Text style={styles.statLabel}>Family Members</Text>
+            <Text style={styles.statLabel}>{t('home.familyMembers')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 

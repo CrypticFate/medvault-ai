@@ -14,6 +14,9 @@ import bn from './locales/bn.json';
 // Storage key for persisting language preference
 const LANGUAGE_STORAGE_KEY = '@medivault_language';
 
+// Bangla numerals mapping
+const BANGLA_NUMERALS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+
 // Supported languages
 export const LANGUAGES = {
   en: { name: 'English', nativeName: 'Eng', code: 'en' },
@@ -21,6 +24,31 @@ export const LANGUAGES = {
 } as const;
 
 export type LanguageCode = keyof typeof LANGUAGES;
+
+/**
+ * Convert a number to Bangla numerals
+ * @param num - The number to convert (can be number or string)
+ * @returns String with Bangla numerals if language is Bengali, otherwise original
+ */
+export const toBanglaNumber = (num: number | string): string => {
+  const currentLang = getCurrentLanguage();
+  const numStr = String(num);
+  
+  if (currentLang !== 'bn') {
+    return numStr;
+  }
+  
+  return numStr.replace(/[0-9]/g, (digit) => BANGLA_NUMERALS[parseInt(digit, 10)]);
+};
+
+/**
+ * Format a number with the current language's numerals
+ * @param num - The number to format
+ * @returns Formatted number string
+ */
+export const formatNumber = (num: number | string): string => {
+  return toBanglaNumber(num);
+};
 
 /**
  * Get the stored language preference

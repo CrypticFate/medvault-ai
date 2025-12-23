@@ -10,5 +10,7 @@ export {
   getLanguageNameForAI,
   getStoredLanguage,
   setStoredLanguage,
+  toBanglaNumber,
+  formatNumber,
 } from './i18n';
 export type { LanguageCode } from './i18n';
