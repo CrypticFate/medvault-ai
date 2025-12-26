@@ -4,6 +4,66 @@
  */
 
 /**
+ * User profile with personal and medical information
+ */
+export interface UserProfile {
+  /** User ID from Firebase Auth */
+  uid: string;
+  /** User's email address */
+  email: string;
+  /** Display name */
+  displayName?: string;
+  /** Profile photo URL */
+  photoURL?: string;
+  /** Account creation timestamp */
+  createdAt: string;
+  /** Last update timestamp */
+  updatedAt: string;
+
+  // Personal Information
+  /** Phone number */
+  phone?: string;
+  /** Date of birth (YYYY-MM-DD) */
+  dateOfBirth?: string;
+  /** Gender */
+  gender?: "male" | "female" | "other" | "prefer-not-to-say";
+  /** Full address */
+  address?: string;
+
+  // Medical Information
+  /** Blood type */
+  bloodType?: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+  /** Height with unit */
+  height?: {
+    value: number;
+    unit: "cm" | "ft";
+  };
+  /** Weight with unit */
+  weight?: {
+    value: number;
+    unit: "kg" | "lbs";
+  };
+  /** Known allergies */
+  allergies?: string;
+  /** Chronic medical conditions */
+  chronicConditions?: string;
+  /** Currently taking medications */
+  currentMedications?: string;
+
+  // Emergency Contact
+  /** Emergency contact person name */
+  emergencyContactName?: string;
+  /** Emergency contact phone number */
+  emergencyContactPhone?: string;
+
+  // Insurance Information
+  /** Insurance provider name */
+  insuranceProvider?: string;
+  /** Insurance ID/Policy number */
+  insuranceId?: string;
+}
+
+/**
  * Medication information extracted from medical documents
  */
 export interface Medication {

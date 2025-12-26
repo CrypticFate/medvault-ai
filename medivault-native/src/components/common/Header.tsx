@@ -3,17 +3,17 @@
  * Screen header with back button and title
  */
 
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ViewStyle,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
-import { colors, spacing, fontSize, fontWeight } from '../../theme';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ChevronLeft } from "lucide-react-native";
+import { colors, spacing, fontSize, fontWeight } from "../../theme";
 
 interface HeaderProps {
   title: string;
@@ -42,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
       style={[
         styles.container,
         transparent ? styles.transparent : styles.solid,
-        { paddingTop: insets.top + spacing['3'] },
+        { paddingTop: insets.top + spacing["3"] },
         style,
       ]}
     >
@@ -71,13 +71,13 @@ export const Header: React.FC<HeaderProps> = ({
         </View>
 
         {/* Right section */}
-        <View style={styles.rightSection}>
+        {/* <View style={styles.rightSection}>
           {rightAction || (
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>U</Text>
             </View>
           )}
-        </View>
+        </View> */}
       </View>
     </View>
   );
@@ -85,8 +85,8 @@ export const Header: React.FC<HeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: spacing['6'],
-    paddingBottom: spacing['4'],
+    paddingHorizontal: spacing["6"],
+    paddingBottom: spacing["4"],
   },
   solid: {
     backgroundColor: colors.background.primary,
@@ -94,22 +94,22 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border.light,
   },
   transparent: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   leftSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
-    gap: spacing['3'],
+    gap: spacing["3"],
   },
   backButton: {
-    padding: spacing['2'],
-    marginLeft: -spacing['2'],
+    padding: spacing["2"],
+    marginLeft: -spacing["2"],
     borderRadius: 999,
   },
   titleContainer: {
@@ -125,20 +125,20 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
     color: colors.text.secondary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     marginTop: 2,
   },
   rightSection: {
-    marginLeft: spacing['3'],
+    marginLeft: spacing["3"],
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.primary[100],
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarText: {
     fontSize: fontSize.base,

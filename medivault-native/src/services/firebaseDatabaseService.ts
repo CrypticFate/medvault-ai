@@ -17,19 +17,19 @@ import {
   off,
   DataSnapshot,
   DatabaseReference,
-} from 'firebase/database';
-import { database } from '../config/firebase';
-import { MedicalRecord, Medication, TakenMedication, LabTestRecord, FamilyMember } from '../types';
+} from "firebase/database";
+import { database } from "../config/firebase";
+import {
+  MedicalRecord,
+  Medication,
+  TakenMedication,
+  LabTestRecord,
+  FamilyMember,
+  UserProfile,
+} from "../types";
 
-// Types for Firebase operations
-export interface UserProfile {
-  uid: string;
-  email: string;
-  displayName?: string;
-  photoURL?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+// Re-export UserProfile for backward compatibility
+export type { UserProfile } from "../types";
 
 export interface MedicationReminder {
   id?: string;
@@ -47,13 +47,13 @@ export interface UserSettings {
 
 // Database paths
 const PATHS = {
-  users: 'users',
-  records: 'records',
-  reminders: 'reminders',
-  settings: 'settings',
-  takenMedications: 'takenMedications',
-  labTestRecords: 'labTestRecords',
-  familyMembers: 'familyMembers',
+  users: "users",
+  records: "records",
+  reminders: "reminders",
+  settings: "settings",
+  takenMedications: "takenMedications",
+  labTestRecords: "labTestRecords",
+  familyMembers: "familyMembers",
 };
 
 /**
@@ -75,23 +75,25 @@ const removeUndefinedValues = <T extends Record<string, any>>(obj: T): T => {
  */
 export const saveUserProfile = async (profile: UserProfile): Promise<void> => {
   const userRef = ref(database, `${PATHS.users}/${profile.uid}`);
-  
+
   // Remove undefined values before saving (Firebase doesn't accept undefined)
   const cleanProfile = removeUndefinedValues({
     ...profile,
     updatedAt: new Date().toISOString(),
   });
-  
+
   await set(userRef, cleanProfile);
 };
 
 /**
  * Get a user profile by UID
  */
-export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
+export const getUserProfile = async (
+  uid: string
+): Promise<UserProfile | null> => {
   const userRef = ref(database, `${PATHS.users}/${uid}`);
   const snapshot = await get(userRef);
-  return snapshot.exists() ? snapshot.val() as UserProfile : null;
+  return snapshot.exists() ? (snapshot.val() as UserProfile) : null;
 };
 
 /**
@@ -102,27 +104,29 @@ export const createRecord = async (
   record: MedicalRecord
 ): Promise<string> => {
   const recordRef = ref(database, `${PATHS.records}/${userId}/${record.id}`);
-  
+
   await set(recordRef, {
     ...record,
     userId,
     syncedAt: new Date().toISOString(),
   });
-  
+
   return record.id;
 };
 
 /**
  * Get all records for a user
  */
-export const getUserRecords = async (userId: string): Promise<MedicalRecord[]> => {
+export const getUserRecords = async (
+  userId: string
+): Promise<MedicalRecord[]> => {
   const recordsRef = ref(database, `${PATHS.records}/${userId}`);
   const snapshot = await get(recordsRef);
-  
+
   if (!snapshot.exists()) {
     return [];
   }
-  
+
   const records: MedicalRecord[] = [];
   snapshot.forEach((childSnapshot: DataSnapshot) => {
     const record = childSnapshot.val();
@@ -130,7 +134,7 @@ export const getUserRecords = async (userId: string): Promise<MedicalRecord[]> =
     const { userId: _, syncedAt: __, ...cleanRecord } = record;
     records.push(cleanRecord as MedicalRecord);
   });
-  
+
   return records.sort((a, b) => b.createdAt - a.createdAt);
 };
 
@@ -143,11 +147,11 @@ export const getRecordById = async (
 ): Promise<MedicalRecord | null> => {
   const recordRef = ref(database, `${PATHS.records}/${userId}/${recordId}`);
   const snapshot = await get(recordRef);
-  
+
   if (!snapshot.exists()) {
     return null;
   }
-  
+
   const record = snapshot.val();
   const { userId: _, syncedAt: __, ...cleanRecord } = record;
   return cleanRecord as MedicalRecord;
@@ -187,7 +191,7 @@ export const getRecordsByType = async (
   documentType: string
 ): Promise<MedicalRecord[]> => {
   const records = await getUserRecords(userId);
-  return records.filter(r => r.analysis.documentType === documentType);
+  return records.filter((r) => r.analysis.documentType === documentType);
 };
 
 /**
@@ -200,7 +204,7 @@ export const subscribeToRecords = (
   onError?: (error: Error) => void
 ): (() => void) => {
   const recordsRef = ref(database, `${PATHS.records}/${userId}`);
-  
+
   const listener = onValue(
     recordsRef,
     (snapshot: DataSnapshot) => {
@@ -212,9 +216,12 @@ export const subscribeToRecords = (
           const { userId: _, syncedAt: __, ...cleanRecord } = record;
           // Ensure analysis arrays are initialized to prevent undefined errors
           if (cleanRecord.analysis) {
-            cleanRecord.analysis.medications = cleanRecord.analysis.medications || [];
-            cleanRecord.analysis.diagnosis = cleanRecord.analysis.diagnosis || [];
-            cleanRecord.analysis.nextSteps = cleanRecord.analysis.nextSteps || [];
+            cleanRecord.analysis.medications =
+              cleanRecord.analysis.medications || [];
+            cleanRecord.analysis.diagnosis =
+              cleanRecord.analysis.diagnosis || [];
+            cleanRecord.analysis.nextSteps =
+              cleanRecord.analysis.nextSteps || [];
           }
           records.push(cleanRecord as MedicalRecord);
         });
@@ -222,13 +229,13 @@ export const subscribeToRecords = (
       callback(records.sort((a, b) => b.createdAt - a.createdAt));
     },
     (error) => {
-      console.error('Firebase subscription error:', error);
+      console.error("Firebase subscription error:", error);
       onError?.(error);
     }
   );
-  
+
   // Return unsubscribe function
-  return () => off(recordsRef, 'value', listener);
+  return () => off(recordsRef, "value", listener);
 };
 
 // ==================== Family Members Functions ====================
@@ -238,11 +245,11 @@ export const subscribeToRecords = (
  */
 export const createFamilyMember = async (
   userId: string,
-  member: Omit<FamilyMember, 'id' | 'createdAt' | 'updatedAt'>
+  member: Omit<FamilyMember, "id" | "createdAt" | "updatedAt">
 ): Promise<string> => {
   const familyMembersRef = ref(database, `${PATHS.familyMembers}/${userId}`);
   const newMemberRef = push(familyMembersRef);
-  
+
   const now = Date.now();
   const newMember: FamilyMember = {
     ...member,
@@ -250,10 +257,10 @@ export const createFamilyMember = async (
     createdAt: now,
     updatedAt: now,
   };
-  
+
   // Remove undefined values before saving
   const cleanMember = removeUndefinedValues(newMember);
-  
+
   await set(newMemberRef, cleanMember);
   return newMemberRef.key!;
 };
@@ -261,19 +268,21 @@ export const createFamilyMember = async (
 /**
  * Get all family members for a user
  */
-export const getUserFamilyMembers = async (userId: string): Promise<FamilyMember[]> => {
+export const getUserFamilyMembers = async (
+  userId: string
+): Promise<FamilyMember[]> => {
   const familyMembersRef = ref(database, `${PATHS.familyMembers}/${userId}`);
   const snapshot = await get(familyMembersRef);
-  
+
   if (!snapshot.exists()) {
     return [];
   }
-  
+
   const members: FamilyMember[] = [];
   snapshot.forEach((childSnapshot: DataSnapshot) => {
     members.push(childSnapshot.val() as FamilyMember);
   });
-  
+
   return members.sort((a, b) => {
     // Primary member first
     if (a.isPrimary && !b.isPrimary) return -1;
@@ -290,13 +299,16 @@ export const getFamilyMemberById = async (
   userId: string,
   memberId: string
 ): Promise<FamilyMember | null> => {
-  const memberRef = ref(database, `${PATHS.familyMembers}/${userId}/${memberId}`);
+  const memberRef = ref(
+    database,
+    `${PATHS.familyMembers}/${userId}/${memberId}`
+  );
   const snapshot = await get(memberRef);
-  
+
   if (!snapshot.exists()) {
     return null;
   }
-  
+
   return snapshot.val() as FamilyMember;
 };
 
@@ -308,13 +320,16 @@ export const updateFamilyMember = async (
   memberId: string,
   updates: Partial<FamilyMember>
 ): Promise<void> => {
-  const memberRef = ref(database, `${PATHS.familyMembers}/${userId}/${memberId}`);
-  
+  const memberRef = ref(
+    database,
+    `${PATHS.familyMembers}/${userId}/${memberId}`
+  );
+
   const cleanUpdates = removeUndefinedValues({
     ...updates,
     updatedAt: Date.now(),
   });
-  
+
   await update(memberRef, cleanUpdates);
 };
 
@@ -325,7 +340,10 @@ export const deleteFamilyMember = async (
   userId: string,
   memberId: string
 ): Promise<void> => {
-  const memberRef = ref(database, `${PATHS.familyMembers}/${userId}/${memberId}`);
+  const memberRef = ref(
+    database,
+    `${PATHS.familyMembers}/${userId}/${memberId}`
+  );
   await remove(memberRef);
 };
 
@@ -338,7 +356,7 @@ export const subscribeToFamilyMembers = (
   onError?: (error: Error) => void
 ): (() => void) => {
   const familyMembersRef = ref(database, `${PATHS.familyMembers}/${userId}`);
-  
+
   const listener = onValue(
     familyMembersRef,
     (snapshot: DataSnapshot) => {
@@ -357,13 +375,13 @@ export const subscribeToFamilyMembers = (
       callback(sortedMembers);
     },
     (error) => {
-      console.error('Firebase family members subscription error:', error);
+      console.error("Firebase family members subscription error:", error);
       onError?.(error);
     }
   );
-  
+
   // Return unsubscribe function
-  return () => off(familyMembersRef, 'value', listener);
+  return () => off(familyMembersRef, "value", listener);
 };
 
 /**
@@ -374,7 +392,7 @@ export const setPrimaryFamilyMember = async (
   memberId: string
 ): Promise<void> => {
   const members = await getUserFamilyMembers(userId);
-  
+
   // Update all members
   for (const member of members) {
     await updateFamilyMember(userId, member.id, {
@@ -390,7 +408,7 @@ export const getPrimaryFamilyMember = async (
   userId: string
 ): Promise<FamilyMember | null> => {
   const members = await getUserFamilyMembers(userId);
-  return members.find(m => m.isPrimary) || members[0] || null;
+  return members.find((m) => m.isPrimary) || members[0] || null;
 };
 
 // ==================== Family Member Records Functions ====================
@@ -404,15 +422,18 @@ export const createRecordForMember = async (
   memberId: string,
   record: MedicalRecord
 ): Promise<string> => {
-  const recordRef = ref(database, `${PATHS.records}/${userId}/${memberId}/${record.id}`);
-  
+  const recordRef = ref(
+    database,
+    `${PATHS.records}/${userId}/${memberId}/${record.id}`
+  );
+
   await set(recordRef, {
     ...record,
     userId,
     memberId,
     syncedAt: new Date().toISOString(),
   });
-  
+
   return record.id;
 };
 
@@ -425,18 +446,18 @@ export const getMemberRecords = async (
 ): Promise<MedicalRecord[]> => {
   const recordsRef = ref(database, `${PATHS.records}/${userId}/${memberId}`);
   const snapshot = await get(recordsRef);
-  
+
   if (!snapshot.exists()) {
     return [];
   }
-  
+
   const records: MedicalRecord[] = [];
   snapshot.forEach((childSnapshot: DataSnapshot) => {
     const record = childSnapshot.val();
     const { userId: _, memberId: __, syncedAt: ___, ...cleanRecord } = record;
     records.push(cleanRecord as MedicalRecord);
   });
-  
+
   return records.sort((a, b) => b.createdAt - a.createdAt);
 };
 
@@ -450,7 +471,7 @@ export const subscribeToMemberRecords = (
   onError?: (error: Error) => void
 ): (() => void) => {
   const recordsRef = ref(database, `${PATHS.records}/${userId}/${memberId}`);
-  
+
   const listener = onValue(
     recordsRef,
     (snapshot: DataSnapshot) => {
@@ -458,19 +479,24 @@ export const subscribeToMemberRecords = (
       if (snapshot.exists()) {
         snapshot.forEach((childSnapshot: DataSnapshot) => {
           const record = childSnapshot.val();
-          const { userId: _, memberId: __, syncedAt: ___, ...cleanRecord } = record;
+          const {
+            userId: _,
+            memberId: __,
+            syncedAt: ___,
+            ...cleanRecord
+          } = record;
           records.push(cleanRecord as MedicalRecord);
         });
       }
       callback(records.sort((a, b) => b.createdAt - a.createdAt));
     },
     (error) => {
-      console.error('Firebase subscription error:', error);
+      console.error("Firebase subscription error:", error);
       onError?.(error);
     }
   );
-  
-  return () => off(recordsRef, 'value', listener);
+
+  return () => off(recordsRef, "value", listener);
 };
 
 /**
@@ -481,7 +507,10 @@ export const deleteMemberRecord = async (
   memberId: string,
   recordId: string
 ): Promise<void> => {
-  const recordRef = ref(database, `${PATHS.records}/${userId}/${memberId}/${recordId}`);
+  const recordRef = ref(
+    database,
+    `${PATHS.records}/${userId}/${memberId}/${recordId}`
+  );
   await remove(recordRef);
 };
 
@@ -494,7 +523,10 @@ export const updateMemberRecord = async (
   recordId: string,
   updates: Partial<MedicalRecord>
 ): Promise<void> => {
-  const recordRef = ref(database, `${PATHS.records}/${userId}/${memberId}/${recordId}`);
+  const recordRef = ref(
+    database,
+    `${PATHS.records}/${userId}/${memberId}/${recordId}`
+  );
   await update(recordRef, {
     ...updates,
     syncedAt: new Date().toISOString(),
@@ -514,9 +546,12 @@ export const updateMedicationProof = async (
 ): Promise<void> => {
   // Try new pattern first if memberId provided
   let record: MedicalRecord | null = null;
-  
+
   if (memberId) {
-    const recordRef = ref(database, `${PATHS.records}/${userId}/${memberId}/${recordId}`);
+    const recordRef = ref(
+      database,
+      `${PATHS.records}/${userId}/${memberId}/${recordId}`
+    );
     const snapshot = await get(recordRef);
     if (snapshot.exists()) {
       const data = snapshot.val();
@@ -524,25 +559,28 @@ export const updateMedicationProof = async (
       record = cleanRecord as MedicalRecord;
     }
   }
-  
+
   // Fall back to old pattern if not found
   if (!record) {
     record = await getRecordById(userId, recordId);
   }
-  
+
   if (!record) {
-    throw new Error('Record not found');
+    throw new Error("Record not found");
   }
-  
+
   const updatedMedications = record.analysis.medications.map((med) =>
     med.name === medicationName
       ? { ...med, purchaseProofImage: proofImage }
       : med
   );
-  
+
   // Update using the appropriate path
   if (memberId) {
-    const recordRef = ref(database, `${PATHS.records}/${userId}/${memberId}/${recordId}`);
+    const recordRef = ref(
+      database,
+      `${PATHS.records}/${userId}/${memberId}/${recordId}`
+    );
     await update(recordRef, {
       analysis: {
         ...record.analysis,
@@ -573,9 +611,12 @@ export const updateMedicationPillCount = async (
 ): Promise<void> => {
   // Try new pattern first if memberId provided
   let record: MedicalRecord | null = null;
-  
+
   if (memberId) {
-    const recordRef = ref(database, `${PATHS.records}/${userId}/${memberId}/${recordId}`);
+    const recordRef = ref(
+      database,
+      `${PATHS.records}/${userId}/${memberId}/${recordId}`
+    );
     const snapshot = await get(recordRef);
     if (snapshot.exists()) {
       const data = snapshot.val();
@@ -583,25 +624,26 @@ export const updateMedicationPillCount = async (
       record = cleanRecord as MedicalRecord;
     }
   }
-  
+
   // Fall back to old pattern if not found
   if (!record) {
     record = await getRecordById(userId, recordId);
   }
-  
+
   if (!record) {
-    throw new Error('Record not found');
+    throw new Error("Record not found");
   }
-  
+
   const updatedMedications = record.analysis.medications.map((med) =>
-    med.name === medicationName
-      ? { ...med, pillsRemaining }
-      : med
+    med.name === medicationName ? { ...med, pillsRemaining } : med
   );
-  
+
   // Update using the appropriate path
   if (memberId) {
-    const recordRef = ref(database, `${PATHS.records}/${userId}/${memberId}/${recordId}`);
+    const recordRef = ref(
+      database,
+      `${PATHS.records}/${userId}/${memberId}/${recordId}`
+    );
     await update(recordRef, {
       analysis: {
         ...record.analysis,
@@ -624,16 +666,16 @@ export const updateMedicationPillCount = async (
  */
 export const saveMedicationReminder = async (
   userId: string,
-  reminder: Omit<MedicationReminder, 'id'>
+  reminder: Omit<MedicationReminder, "id">
 ): Promise<string> => {
   const remindersRef = ref(database, `${PATHS.reminders}/${userId}`);
   const newReminderRef = push(remindersRef);
-  
+
   const newReminder: MedicationReminder = {
     ...reminder,
     id: newReminderRef.key!,
   };
-  
+
   await set(newReminderRef, newReminder);
   return newReminderRef.key!;
 };
@@ -641,19 +683,21 @@ export const saveMedicationReminder = async (
 /**
  * Get all medication reminders for a user
  */
-export const getUserReminders = async (userId: string): Promise<MedicationReminder[]> => {
+export const getUserReminders = async (
+  userId: string
+): Promise<MedicationReminder[]> => {
   const remindersRef = ref(database, `${PATHS.reminders}/${userId}`);
   const snapshot = await get(remindersRef);
-  
+
   if (!snapshot.exists()) {
     return [];
   }
-  
+
   const reminders: MedicationReminder[] = [];
   snapshot.forEach((childSnapshot: DataSnapshot) => {
     reminders.push(childSnapshot.val() as MedicationReminder);
   });
-  
+
   return reminders;
 };
 
@@ -665,7 +709,10 @@ export const updateReminder = async (
   reminderId: string,
   updates: Partial<MedicationReminder>
 ): Promise<void> => {
-  const reminderRef = ref(database, `${PATHS.reminders}/${userId}/${reminderId}`);
+  const reminderRef = ref(
+    database,
+    `${PATHS.reminders}/${userId}/${reminderId}`
+  );
   await update(reminderRef, updates);
 };
 
@@ -676,7 +723,10 @@ export const deleteReminder = async (
   userId: string,
   reminderId: string
 ): Promise<void> => {
-  const reminderRef = ref(database, `${PATHS.reminders}/${userId}/${reminderId}`);
+  const reminderRef = ref(
+    database,
+    `${PATHS.reminders}/${userId}/${reminderId}`
+  );
   await remove(reminderRef);
 };
 
@@ -689,7 +739,7 @@ export const subscribeToReminders = (
   onError?: (error: Error) => void
 ): (() => void) => {
   const remindersRef = ref(database, `${PATHS.reminders}/${userId}`);
-  
+
   const listener = onValue(
     remindersRef,
     (snapshot: DataSnapshot) => {
@@ -702,22 +752,24 @@ export const subscribeToReminders = (
       callback(reminders);
     },
     (error) => {
-      console.error('Firebase reminders subscription error:', error);
+      console.error("Firebase reminders subscription error:", error);
       onError?.(error);
     }
   );
-  
+
   // Return unsubscribe function
-  return () => off(remindersRef, 'value', listener);
+  return () => off(remindersRef, "value", listener);
 };
 
 /**
  * Get user settings
  */
-export const getUserSettings = async (userId: string): Promise<UserSettings | null> => {
+export const getUserSettings = async (
+  userId: string
+): Promise<UserSettings | null> => {
   const settingsRef = ref(database, `${PATHS.settings}/${userId}`);
   const snapshot = await get(settingsRef);
-  return snapshot.exists() ? snapshot.val() as UserSettings : null;
+  return snapshot.exists() ? (snapshot.val() as UserSettings) : null;
 };
 
 /**
@@ -739,11 +791,11 @@ export const syncLocalRecordsToFirebase = async (
   localRecords: MedicalRecord[]
 ): Promise<void> => {
   const existingRecords = await getUserRecords(userId);
-  const existingIds = new Set(existingRecords.map(r => r.id));
-  
+  const existingIds = new Set(existingRecords.map((r) => r.id));
+
   // Only sync records that don't exist in Firebase
-  const newRecords = localRecords.filter(r => !existingIds.has(r.id));
-  
+  const newRecords = localRecords.filter((r) => !existingIds.has(r.id));
+
   for (const record of newRecords) {
     await createRecord(userId, record);
   }
@@ -756,16 +808,16 @@ export const syncLocalRecordsToFirebase = async (
  */
 export const saveTakenMedication = async (
   userId: string,
-  takenMed: Omit<TakenMedication, 'id'>
+  takenMed: Omit<TakenMedication, "id">
 ): Promise<string> => {
   const takenMedsRef = ref(database, `${PATHS.takenMedications}/${userId}`);
   const newTakenMedRef = push(takenMedsRef);
-  
+
   const newTakenMed: TakenMedication = {
     ...takenMed,
     id: newTakenMedRef.key!,
   };
-  
+
   await set(newTakenMedRef, newTakenMed);
   return newTakenMedRef.key!;
 };
@@ -773,19 +825,21 @@ export const saveTakenMedication = async (
 /**
  * Get all taken medications for a user
  */
-export const getUserTakenMedications = async (userId: string): Promise<TakenMedication[]> => {
+export const getUserTakenMedications = async (
+  userId: string
+): Promise<TakenMedication[]> => {
   const takenMedsRef = ref(database, `${PATHS.takenMedications}/${userId}`);
   const snapshot = await get(takenMedsRef);
-  
+
   if (!snapshot.exists()) {
     return [];
   }
-  
+
   const takenMeds: TakenMedication[] = [];
   snapshot.forEach((childSnapshot: DataSnapshot) => {
     takenMeds.push(childSnapshot.val() as TakenMedication);
   });
-  
+
   return takenMeds.sort((a, b) => b.takenAt - a.takenAt);
 };
 
@@ -797,7 +851,7 @@ export const getTakenMedicationsForDate = async (
   date: string
 ): Promise<TakenMedication[]> => {
   const allTakenMeds = await getUserTakenMedications(userId);
-  return allTakenMeds.filter(med => med.date === date);
+  return allTakenMeds.filter((med) => med.date === date);
 };
 
 /**
@@ -809,7 +863,7 @@ export const subscribeToTakenMedications = (
   onError?: (error: Error) => void
 ): (() => void) => {
   const takenMedsRef = ref(database, `${PATHS.takenMedications}/${userId}`);
-  
+
   const listener = onValue(
     takenMedsRef,
     (snapshot: DataSnapshot) => {
@@ -822,13 +876,13 @@ export const subscribeToTakenMedications = (
       callback(takenMeds.sort((a, b) => b.takenAt - a.takenAt));
     },
     (error) => {
-      console.error('Firebase taken medications subscription error:', error);
+      console.error("Firebase taken medications subscription error:", error);
       onError?.(error);
     }
   );
-  
+
   // Return unsubscribe function
-  return () => off(takenMedsRef, 'value', listener);
+  return () => off(takenMedsRef, "value", listener);
 };
 
 /**
@@ -838,7 +892,10 @@ export const deleteTakenMedication = async (
   userId: string,
   takenMedId: string
 ): Promise<void> => {
-  const takenMedRef = ref(database, `${PATHS.takenMedications}/${userId}/${takenMedId}`);
+  const takenMedRef = ref(
+    database,
+    `${PATHS.takenMedications}/${userId}/${takenMedId}`
+  );
   await remove(takenMedRef);
 };
 
@@ -853,7 +910,7 @@ export const isMedicationTakenForSlot = async (
 ): Promise<boolean> => {
   const takenMeds = await getTakenMedicationsForDate(userId, date);
   return takenMeds.some(
-    med => med.medicationName === medicationName && med.timeSlot === timeSlot
+    (med) => med.medicationName === medicationName && med.timeSlot === timeSlot
   );
 };
 
@@ -866,28 +923,33 @@ export const createLabTestRecord = async (
   userId: string,
   record: LabTestRecord
 ): Promise<string> => {
-  const recordRef = ref(database, `${PATHS.labTestRecords}/${userId}/${record.id}`);
-  
+  const recordRef = ref(
+    database,
+    `${PATHS.labTestRecords}/${userId}/${record.id}`
+  );
+
   await set(recordRef, {
     ...record,
     userId,
     syncedAt: new Date().toISOString(),
   });
-  
+
   return record.id;
 };
 
 /**
  * Get all lab test records for a user
  */
-export const getUserLabTestRecords = async (userId: string): Promise<LabTestRecord[]> => {
+export const getUserLabTestRecords = async (
+  userId: string
+): Promise<LabTestRecord[]> => {
   const recordsRef = ref(database, `${PATHS.labTestRecords}/${userId}`);
   const snapshot = await get(recordsRef);
-  
+
   if (!snapshot.exists()) {
     return [];
   }
-  
+
   const records: LabTestRecord[] = [];
   snapshot.forEach((childSnapshot: DataSnapshot) => {
     const record = childSnapshot.val();
@@ -895,7 +957,7 @@ export const getUserLabTestRecords = async (userId: string): Promise<LabTestReco
     const { userId: _, syncedAt: __, ...cleanRecord } = record;
     records.push(cleanRecord as LabTestRecord);
   });
-  
+
   return records.sort((a, b) => b.createdAt - a.createdAt);
 };
 
@@ -906,13 +968,16 @@ export const getLabTestRecordById = async (
   userId: string,
   recordId: string
 ): Promise<LabTestRecord | null> => {
-  const recordRef = ref(database, `${PATHS.labTestRecords}/${userId}/${recordId}`);
+  const recordRef = ref(
+    database,
+    `${PATHS.labTestRecords}/${userId}/${recordId}`
+  );
   const snapshot = await get(recordRef);
-  
+
   if (!snapshot.exists()) {
     return null;
   }
-  
+
   const record = snapshot.val();
   const { userId: _, syncedAt: __, ...cleanRecord } = record;
   return cleanRecord as LabTestRecord;
@@ -926,7 +991,10 @@ export const updateLabTestRecord = async (
   recordId: string,
   updates: Partial<LabTestRecord>
 ): Promise<void> => {
-  const recordRef = ref(database, `${PATHS.labTestRecords}/${userId}/${recordId}`);
+  const recordRef = ref(
+    database,
+    `${PATHS.labTestRecords}/${userId}/${recordId}`
+  );
   await update(recordRef, {
     ...updates,
     syncedAt: new Date().toISOString(),
@@ -940,7 +1008,10 @@ export const deleteLabTestRecord = async (
   userId: string,
   recordId: string
 ): Promise<void> => {
-  const recordRef = ref(database, `${PATHS.labTestRecords}/${userId}/${recordId}`);
+  const recordRef = ref(
+    database,
+    `${PATHS.labTestRecords}/${userId}/${recordId}`
+  );
   await remove(recordRef);
 };
 
@@ -953,7 +1024,7 @@ export const subscribeToLabTestRecords = (
   onError?: (error: Error) => void
 ): (() => void) => {
   const recordsRef = ref(database, `${PATHS.labTestRecords}/${userId}`);
-  
+
   const listener = onValue(
     recordsRef,
     (snapshot: DataSnapshot) => {
@@ -965,9 +1036,12 @@ export const subscribeToLabTestRecords = (
           const { userId: _, syncedAt: __, ...cleanRecord } = record;
           // Ensure analysis arrays are initialized to prevent undefined errors
           if (cleanRecord.analysis) {
-            cleanRecord.analysis.testCategories = cleanRecord.analysis.testCategories || [];
-            cleanRecord.analysis.keyFindings = cleanRecord.analysis.keyFindings || [];
-            cleanRecord.analysis.recommendations = cleanRecord.analysis.recommendations || [];
+            cleanRecord.analysis.testCategories =
+              cleanRecord.analysis.testCategories || [];
+            cleanRecord.analysis.keyFindings =
+              cleanRecord.analysis.keyFindings || [];
+            cleanRecord.analysis.recommendations =
+              cleanRecord.analysis.recommendations || [];
           }
           records.push(cleanRecord as LabTestRecord);
         });
@@ -975,11 +1049,11 @@ export const subscribeToLabTestRecords = (
       callback(records.sort((a, b) => b.createdAt - a.createdAt));
     },
     (error) => {
-      console.error('Firebase lab test records subscription error:', error);
+      console.error("Firebase lab test records subscription error:", error);
       onError?.(error);
     }
   );
-  
+
   // Return unsubscribe function
-  return () => off(recordsRef, 'value', listener);
+  return () => off(recordsRef, "value", listener);
 };
