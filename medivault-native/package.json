@@ -8,8 +8,7 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
     "lint": "eslint . --ext .ts,.tsx",
-    "type-check": "tsc --noEmit",
-    "eas-build-pre-install": "node scripts/generate-env.js"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
